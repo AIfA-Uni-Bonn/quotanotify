@@ -16,8 +16,21 @@ from datetime import datetime, timedelta
 import iso8601  # https://bitbucket.org/micktwomey/pyiso8601
 from enum import Enum  # https://pypi.python.org/pypi/enum34
 
-QuotaType = Enum('block', 'inode')
-QuotaState = Enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_expired')
+from collections import namedtuple
+
+#def enum( *args ):
+#	enums = dict( zip( args, range( len( args ) ) ) )
+#	return type( 'Enum', (), enums )
+
+def enum(*keys):
+        return namedtuple('Enum', keys)(*range(len(keys)))
+
+
+#QuotaType = Enum('block', 'inode')
+QuotaType = enum('block', 'inode' )
+
+#QuotaState = Enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_expired')
+QuotaState = enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_expired')
 
 def parse_datetime(field):
     """Parses an ISO-8601-formatted datetime.  Returns None for None."""
@@ -79,11 +92,12 @@ class QuotaInfo:
 
     def refresh(self):
         self.db_cursor.execute('SELECT * FROM entry WHERE uid = ? AND filesystem = ? AND quota_type = ?',
-                               (self.uid, self.filesystem, self.quota_type.index))
+                               #(self.uid, self.filesystem, self.quota_type.index))
+                               (self.uid, self.filesystem, self.quota_type))
         # RHEL 5's pysqlite is too old to have indexing by field name, so we
         # have to fake it.
         indices = {}
-        for i in xrange(0, len(self.db_cursor.description)):
+        for i in range(0, len(self.db_cursor.description)):
             indices[self.db_cursor.description[i][0]] = i
         
         row = self.db_cursor.fetchone()
@@ -159,9 +173,11 @@ class QuotaInfo:
             (self.used, self.soft_limit, self.hard_limit,
              self.grace_expires and self.grace_expires.isoformat(),
              self.last_notify_date and self.last_notify_date.isoformat(),
-             self.last_notify_state and self.last_notify_state.index,
+             #self.last_notify_state and self.last_notify_state.index,
+             self.last_notify_state and self.last_notify_state,
              datetime.now().isoformat(),
-             self.uid, self.filesystem, self.quota_type.index))
+             #self.uid, self.filesystem, self.quota_type.index))
+             self.uid, self.filesystem, self.quota_type))
         if self.db_cursor.rowcount == 0:
             self.db_cursor.execute(
                 """INSERT INTO entry
@@ -172,9 +188,11 @@ class QuotaInfo:
                 (self.used, self.soft_limit, self.hard_limit,
                  self.grace_expires and self.grace_expires.isoformat(),
                  self.last_notify_date and self.last_notify_date.isoformat(),
-                 self.last_notify_state and self.last_notify_state.index,
+                 #self.last_notify_state and self.last_notify_state.index,
+                 self.last_notify_state and self.last_notify_state,
                  datetime.now().isoformat(),
-                 self.uid, self.filesystem, self.quota_type.index))
+                 #self.uid, self.filesystem, self.quota_type.index))
+                 self.uid, self.filesystem, self.quota_type))
 
     def set_notify(self):
         """Update this object with a new notification date."""
@@ -244,6 +262,7 @@ class AccountInfo:
                                    '-d', filesystem],
                                   stdout=subprocess.PIPE)
             stdout, stderr = qt.communicate()
+
             qt_uid, qt_fs, \
                 blocks_used, block_quota, block_limit, block_grace, \
                 inodes_used, inode_quota, inode_limit, inode_grace = \

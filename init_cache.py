@@ -9,7 +9,8 @@
 
 from config import *
 
-from pysqlite2 import dbapi2 as sqlite
+#from pysqlite2 import dbapi2 as sqlite
+from sqlite3 import dbapi2 as sqlite
 
 config = load_config_file()
 cache = sqlite.connect(config['cache'])

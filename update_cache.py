@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
@@ -13,7 +13,8 @@ from model import *
 
 import pwd
 
-from pysqlite2 import dbapi2 as sqlite  # https://github.com/ghaering/pysqlite
+#from pysqlite2 import dbapi2 as sqlite  # https://github.com/ghaering/pysqlite
+from sqlite3 import dbapi2 as sqlite  # https://github.com/ghaering/pysqlite
 
 config = load_config_file()
 cache = sqlite.connect(config['cache'])

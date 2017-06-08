@@ -22,6 +22,7 @@ DEFAULTS = {
     'domain': platform.node(),
     'from_address': 'root',
     'notification_hysteresis': 30,
+    'hard_limit_renotification' : 1440,   # in minutes
     'reply_to': None,
     'smtp_host': 'localhost',
 }
@@ -51,7 +52,8 @@ def load_config_file():
             config_dir = os.path.dirname(options.config)
             config = yaml.load(config_file, Loader=yaml.CLoader)
             # Fill in defaults.
-            for dkey, dvalue in DEFAULTS.iteritems():
+            #for dkey, dvalue in DEFAULTS.iteritems():
+            for dkey, dvalue in DEFAULTS.items():
                 if dkey not in config:
                     config[dkey] = dvalue
             # Canonify path names.
