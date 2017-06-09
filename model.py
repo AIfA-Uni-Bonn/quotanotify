@@ -67,6 +67,8 @@ class QuotaInfo:
         grace_expires  A datetime indicating when the grace period for exceeding
                        the soft limit will expire.  If the soft limit is not
                        exceeded, the value of this attribute will be None.
+        grace_expires_delta A timedelta which holds the time until the grace
+                            period is over!
         last_notify_date  A datetime indicating the date and time when the
                           account owner was last contacted about their quota
                           usage.
@@ -106,6 +108,11 @@ class QuotaInfo:
             self.soft_limit = row[indices['soft_limit']]
             self.hard_limit = row[indices['hard_limit']]
             self.grace_expires = parse_datetime(row[indices['grace_expires']])
+            # calculate the deltatime for babel ;-)
+            if ( self.grace_expires is None ):
+               self.grace_expires_delta = timedelta( seconds=0 )
+            else:
+               self.grace_expires_delta = self.grace_expires - datetime.now()
             self.last_notify_date = parse_datetime(row[indices['last_notify_date']])
             last_notify_state = row[indices['last_notify_state']]
             if last_notify_state:
@@ -118,6 +125,7 @@ class QuotaInfo:
             self.soft_limit = None
             self.hard_limit = None
             self.grace_expires = None
+            self.grace_expires_delta = timedelta( minutes=0 )
             self.last_notify_date = None
             self.last_notify_state = None
         
@@ -129,9 +137,12 @@ class QuotaInfo:
         self.hard_limit = int(hard_limit)
         if int(grace) == 0:
             self.grace_expires = None
+            self.grace_expires_delta = timedelta( minutes=0 )
         else:
+            self.grace_expires_delta = timedelta(seconds=int(grace))
             self.grace_expires = \
-                datetime.now().replace(microsecond=0) + timedelta(seconds=int(grace))
+                datetime.now().replace(microsecond=0) + self.grace_expires_delta
+            
 
     @property
     def current_state(self):
@@ -232,6 +243,18 @@ class AccountInfo:
             return pwd.getpwuid(self.uid).pw_name
         except KeyError:
             return '#%d' % self.uid
+
+    @property
+    def realname( self ):
+        try:
+           gecos = pwd.getpwnam( self.username )[4]
+           if gecos.find( ',' ) == -1:
+              name = gecos
+           else:
+              name = gecos.split( ',' )[0]
+           return name
+        except KeyError:
+          return self.username
 
     @property
     def iter_quotas(self):

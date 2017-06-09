@@ -11,12 +11,15 @@
 from config import *
 from model import *
 
+
 #import email.MIMEText
 from email.mime.text import MIMEText
 import smtplib
 import syslog
 
 import jinja2  # http://jinja.pocoo.org
+
+import babel.dates    # nice tool ;-)
 
 #from pysqlite2 import dbapi2 as sqlite  # https://github.com/ghaering/pysqlite
 from sqlite3 import dbapi2 as sqlite  # https://github.com/ghaering/pysqlite
@@ -26,6 +29,8 @@ cache = sqlite.connect(config['cache'])
 cur = cache.cursor()
 
 jj_env = jinja2.Environment(loader=jinja2.FileSystemLoader('/'))
+
+jj_env.filters['timedelta'] = babel.dates.format_timedelta
 
 def send_email(to, subject, body):
     to_addr = '%s@%s' % (to, config['domain'])
@@ -64,6 +69,9 @@ def send_email_p(quotas):
     for q in quotas:
         if ( q.current_state == QuotaState.hard_limit ):
           return  (datetime.now() - last_notification) >= timedelta(minutes=config['hard_limit_renotification'])
+        if ( q.current_state == QuotaState.soft_limit ):
+          return  (datetime.now() - last_notification) >= timedelta(minutes=config['hard_limit_renotification'])
+
     # No state is worse than it was.
 
     # Only send an email if all states are under quota...
@@ -109,19 +117,22 @@ def handle_state_change(ai):
                 template_key = '%s_summary_new' % qtype[q.quota_type]
             template_str = config['templates'][qstate[q.current_state]][template_key]
             if template_str:
-                sum_text = jinja2.Template(template_str).render(account=ai, quota=q)
+                #sum_text = jinja2.Template(template_str).render(account=ai, quota=q)
+                sum_text = jj_env.from_string(template_str).render(account=ai, quota=q)
                 if summary == '':
                     summary = sum_text
                 else:
                     summary += '  Also, %s%s' % (sum_text[0].lower(), sum_text[1:])
-            details.append(jinja2.Template(config['templates'][qstate[q.current_state]]['%s_detail' % qtype[q.quota_type]]).render(account=ai, quota=q))
+            #details.append(jinja2.Template(config['templates'][qstate[q.current_state]]['%s_detail' % qtype[q.quota_type]]).render(account=ai, quota=q))
+            details.append(jj_env.from_string(config['templates'][qstate[q.current_state]]['%s_detail' % qtype[q.quota_type]]).render(account=ai, quota=q))
         worst_state = qstate[quotas[0].current_state]
         message = jj_env.get_template(config['templates'][worst_state]['main_file']).render(account=ai, summary=summary, details=details)
         if config['debug']:
             recipient = config['debug_mail_recipient']
         else:
             recipient = ai.username
-        send_email(recipient, jinja2.Template(config['templates'][worst_state]['subject']).render(account=ai), message)
+        #send_email(recipient, jinja2.Template(config['templates'][worst_state]['subject']).render(account=ai), message)
+        send_email(recipient, jj_env.from_string(config['templates'][worst_state]['subject']).render(account=ai), message)
         log_message = 'Sent email to %s: %s' % (ai.username, ', '.join(['%s %s %s %s/%s' % (q.filesystem, qtype[q.quota_type], qstate[q.current_state], q.used, q.soft_limit) for q in quotas]))
         if config['debug']:
             print( log_message )
