@@ -2,6 +2,8 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
+# changed: Oliver Cordes 2017-06-21
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -23,6 +25,9 @@ DEFAULTS = {
     'from_address': 'root',
     'notification_hysteresis': 30,
     'hard_limit_renotification' : 1440,   # in minutes
+    'soft_limit_renotification' : 1440,   # in minutes
+    'grace_time_ext_warning' : 1440, # start of extensive warning in minutes
+    'grace_time_exp_period'  : 60,   # warn every 60 minutes
     'reply_to': None,
     'smtp_host': 'localhost',
 }

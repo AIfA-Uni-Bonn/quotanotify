@@ -63,14 +63,26 @@ def send_email_p(quotas):
     # important, in any case we use this variable, we have to
     # be sure, that at least one notification was sent ...
     last_notification = max([q.last_notify_date for q in quotas])
+    if last_notification is not None:
+      last_now = datetime.now() - last_notification
+    else:
+      last_now = 0
 
     # new check for reaching the hard limit and re-notifying after a 
     # certain period
+ 
     for q in quotas:
         if ( q.current_state == QuotaState.hard_limit ):
-          return  (datetime.now() - last_notification) >= timedelta(minutes=config['hard_limit_renotification'])
+          return  last_now >= timedelta(minutes=config['hard_limit_renotification'])
+        #print( 'last_now:', last_now )
+        #print( 'grace_expires_delta:', q.grace_expires_delta )
         if ( q.current_state == QuotaState.soft_limit ):
-          return  (datetime.now() - last_notification) >= timedelta(minutes=config['hard_limit_renotification'])
+          if ( q.grace_expires_delta < timedelta( minutes=config['grace_time_ext_warning'] ) ):
+             return last_now >= timedelta( minutes=config['grace_time_exp_period'] )
+          else:
+             return  last_now >= timedelta(minutes=config['soft_limit_renotification'])
+        if ( q.current_state == QuotaState.grace_expired ):
+          return  last_now >= timedelta(minutes=config['hard_limit_renotification'])
 
     # No state is worse than it was.
 
