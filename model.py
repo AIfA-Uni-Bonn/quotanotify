@@ -2,6 +2,8 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
+# changed by: Oliver Cordes 2017-06-26
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -18,19 +20,13 @@ from enum import Enum  # https://pypi.python.org/pypi/enum34
 
 from collections import namedtuple
 
-#def enum( *args ):
-#	enums = dict( zip( args, range( len( args ) ) ) )
-#	return type( 'Enum', (), enums )
-
 def enum(*keys):
         return namedtuple('Enum', keys)(*range(len(keys)))
 
 
-#QuotaType = Enum('block', 'inode')
 QuotaType = enum('block', 'inode' )
 
-#QuotaState = Enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_expired')
-QuotaState = enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_expired')
+QuotaState = enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_urgend', 'grace_expired')
 
 def parse_datetime(field):
     """Parses an ISO-8601-formatted datetime.  Returns None for None."""
@@ -82,11 +78,12 @@ class QuotaInfo:
         byte_hard_limit  For block quotas, the hard limit in bytes.
     """
 
-    def __init__(self, uid, filesystem, quota_type, db_cursor):
+    def __init__(self, uid, filesystem, quota_type, db_cursor, config):
         self.uid = uid
         self.filesystem = filesystem
         self.quota_type = quota_type
         self.db_cursor = db_cursor
+        self.config = config
         self.refresh()
 
     def __repr__(self):
@@ -150,6 +147,8 @@ class QuotaInfo:
             return QuotaState.no_quota
         if self.used < self.soft_limit:
             return QuotaState.under_quota
+        if self.used < self.hard_limit and self.grace_expires_delta < timedelta(minutes=self.config['grace_time_ext_warning']):
+            return QuotaState.grace_urgend
         if self.used < self.hard_limit and datetime.now() < self.grace_expires:
             return QuotaState.soft_limit
         if self.used >= self.hard_limit:
@@ -224,16 +223,17 @@ class AccountInfo:
     """
 
     @staticmethod
-    def all(db_cursor):
+    def all(db_cursor, config):
         """Generator that yields all entries in the cache."""
         db_cursor.execute('SELECT DISTINCT uid FROM entry')
         results = db_cursor.fetchall()
         for row in results:
-            yield AccountInfo(row[0], db_cursor)
+            yield AccountInfo(row[0], db_cursor, config)
 
-    def __init__(self, uid, db_cursor):
+    def __init__(self, uid, db_cursor, config):
         self.uid = uid
         self.db_cursor = db_cursor
+        self.config = config
 
         self.refresh_from_db()
 
@@ -270,16 +270,16 @@ class AccountInfo:
         rows = self.db_cursor.fetchall()
         for row in rows:
             self.quotas[row[0]] = {}
-            self.quotas[row[0]][QuotaType.block] = QuotaInfo(self.uid, row[0], QuotaType.block, self.db_cursor)
-            self.quotas[row[0]][QuotaType.inode] = QuotaInfo(self.uid, row[0], QuotaType.inode, self.db_cursor)
+            self.quotas[row[0]][QuotaType.block] = QuotaInfo(self.uid, row[0], QuotaType.block, self.db_cursor, self.config)
+            self.quotas[row[0]][QuotaType.inode] = QuotaInfo(self.uid, row[0], QuotaType.inode, self.db_cursor, self.config)
 
     def refresh_from_system(self):
         self.quotas = {}
         for filesystem in list_quota_filesystems():
             self.quotas[filesystem] = {}
 
-            bqi = QuotaInfo(self.uid, filesystem, QuotaType.block, self.db_cursor)
-            iqi = QuotaInfo(self.uid, filesystem, QuotaType.inode, self.db_cursor)
+            bqi = QuotaInfo(self.uid, filesystem, QuotaType.block, self.db_cursor, self.config)
+            iqi = QuotaInfo(self.uid, filesystem, QuotaType.inode, self.db_cursor, self.config)
 
             qt = subprocess.Popen(['quotatool', '-u', str(self.uid),
                                    '-d', filesystem],

@@ -2,6 +2,8 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
+# changed by: Oliver Cordes 2017-06-28
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -22,7 +24,7 @@ cur = cache.cursor()
 
 # Update quotas for every account on the system.
 for pwd_entry in pwd.getpwall():
-    ai = AccountInfo(pwd_entry.pw_uid, cur)
+    ai = AccountInfo(pwd_entry.pw_uid, cur, config)
     ai.refresh_from_system()
     ai.update()
 

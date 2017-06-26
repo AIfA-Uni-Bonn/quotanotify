@@ -2,6 +2,8 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
+# changed by: Oliver Cordes 2017-06-28
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -73,16 +75,13 @@ def send_email_p(quotas):
  
     for q in quotas:
         if ( q.current_state == QuotaState.hard_limit ):
-          return  last_now >= timedelta(minutes=config['hard_limit_renotification'])
-        #print( 'last_now:', last_now )
-        #print( 'grace_expires_delta:', q.grace_expires_delta )
+          return last_now >= timedelta(minutes=config['hard_limit_renotification'])
         if ( q.current_state == QuotaState.soft_limit ):
-          if ( q.grace_expires_delta < timedelta( minutes=config['grace_time_ext_warning'] ) ):
-             return last_now >= timedelta( minutes=config['grace_time_exp_period'] )
-          else:
-             return  last_now >= timedelta(minutes=config['soft_limit_renotification'])
+          return last_now >= timedelta(minutes=config['soft_limit_renotification'])
+        if ( q.current_state == QuotaState.grace_urgend ):
+          return last_now >= timedelta( minutes=config['grace_time_exp_period'] )
         if ( q.current_state == QuotaState.grace_expired ):
-          return  last_now >= timedelta(minutes=config['hard_limit_renotification'])
+          return last_now >= timedelta(minutes=config['hard_limit_renotification'])
 
     # No state is worse than it was.
 
@@ -138,7 +137,15 @@ def handle_state_change(ai):
             #details.append(jinja2.Template(config['templates'][qstate[q.current_state]]['%s_detail' % qtype[q.quota_type]]).render(account=ai, quota=q))
             details.append(jj_env.from_string(config['templates'][qstate[q.current_state]]['%s_detail' % qtype[q.quota_type]]).render(account=ai, quota=q))
         worst_state = qstate[quotas[0].current_state]
-        message = jj_env.get_template(config['templates'][worst_state]['main_file']).render(account=ai, summary=summary, details=details)
+        # look for the quota record which has the lowest grace time to be used in the message
+        template_quota = None
+        for q in quotas:
+          if template_quota is None:
+            template_quota = q
+          else:
+            if template_quota.grace_expires_delta > q.grace_expires_delta:
+              template_quota = q
+        message = jj_env.get_template(config['templates'][worst_state]['main_file']).render(account=ai, summary=summary, details=details, quota=template_quota)
         if config['debug']:
             recipient = config['debug_mail_recipient']
         else:
@@ -152,6 +159,6 @@ def handle_state_change(ai):
             syslog.syslog(syslog.LOG_INFO | syslog.LOG_USER, log_message)
         ai.set_notify(quotas)
 
-for ai in AccountInfo.all(cur):
+for ai in AccountInfo.all(cur, config):
     handle_state_change(ai)
 cache.commit()
