@@ -147,8 +147,12 @@ class QuotaInfo:
             return QuotaState.no_quota
         if self.used < self.soft_limit:
             return QuotaState.under_quota
-        if self.used < self.hard_limit and self.grace_expires_delta < timedelta(minutes=self.config['grace_time_ext_warning']):
-            return QuotaState.grace_urgend
+        if self.used < self.hard_limit and datetime.now() < self.grace_expires:
+        # we are in the soft limit and in the grace_time
+            if self.grace_expires_delta < timedelta(minutes=self.config['grace_time_ext_warning']):
+                return QuotaState.grace_urgend
+            else:
+                return QuotaState.soft_limit
         if self.used < self.hard_limit and datetime.now() < self.grace_expires:
             return QuotaState.soft_limit
         if self.used >= self.hard_limit:
