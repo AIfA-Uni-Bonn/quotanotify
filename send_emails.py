@@ -2,7 +2,7 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
-# changed by: Oliver Cordes 2017-06-28
+# changed by: Oliver Cordes 2017-08-22
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@ from email.mime.text import MIMEText
 import smtplib
 import syslog
 
+import subprocess
+
 import jinja2  # http://jinja.pocoo.org
 
 import babel.dates    # nice tool ;-)
@@ -34,8 +36,33 @@ jj_env = jinja2.Environment(loader=jinja2.FileSystemLoader('/'))
 
 jj_env.filters['timedelta'] = babel.dates.format_timedelta
 
+def get_email_address( to, domain ):
+    if ( 'get_email_address' in config ) :
+       cmd = '%s %s %s 2>/dev/null' % ( config['get_email_address'], to, domain ) 
+       p = subprocess.Popen( cmd, shell=True, bufsize=-1,
+                             universal_newlines=True,
+                             stdin=subprocess.PIPE,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+			     close_fds=True )
+       line = p.stdout.readline().replace( '\n', '' )
+       if ( line == '' ):
+          log_message = 'cmd for getting email address failed: %s' % cmd
+          if config['debug']:
+            print( log_message )
+          else:
+            syslog.syslog(syslog.LOG_INFO | syslog.LOG_USER, log_message)
+          return '%s@%s' % (to, domain) 
+       else:
+         return line
+    else:
+       return '%s@%s' % (to, domain)
+    
+
 def send_email(to, subject, body):
-    to_addr = '%s@%s' % (to, config['domain'])
+    #to_addr = '%s@%s' % (to, config['domain'])
+    to_addr = get_email_address( to, config['domain'] )
+    print( to_addr )
     if '@' in config['from_address']:
         from_addr = config['from_address']
     else:
@@ -48,7 +75,7 @@ def send_email(to, subject, body):
     if config['reply_to']:
         msg['Reply-To'] = config['reply_to']
     s = smtplib.SMTP(config['smtp_host'])
-    s.sendmail(from_addr, to_addr, msg.as_string())
+    s.sendmail(from_addr, to_addr.split(','), msg.as_string())
     s.quit()
 
 def send_email_p(quotas):

@@ -2,7 +2,7 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
-# changed by: Oliver Cordes 2017-06-26
+# changed by: Oliver Cordes 2017-06-29
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
