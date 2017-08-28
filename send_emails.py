@@ -62,7 +62,6 @@ def get_email_address( to, domain ):
 def send_email(to, subject, body):
     #to_addr = '%s@%s' % (to, config['domain'])
     to_addr = get_email_address( to, config['domain'] )
-    print( to_addr )
     if '@' in config['from_address']:
         from_addr = config['from_address']
     else:
