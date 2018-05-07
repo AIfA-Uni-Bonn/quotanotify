@@ -2,7 +2,7 @@
 
 # Copyright (c) 2015  Phil Gold <phil_g@pobox.com>
 #
-# changed by: Oliver Cordes 2017-06-29
+# changed by: Oliver Cordes 2018-05-07
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,8 +25,10 @@ def enum(*keys):
 
 
 QuotaType = enum('block', 'inode' )
+sQuotaType = ('block', 'inode' )
 
 QuotaState = enum('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_urgend', 'grace_expired')
+sQuotaState = ('no_quota', 'under_quota', 'soft_limit', 'hard_limit', 'grace_urgend', 'grace_expired')
 
 def parse_datetime(field):
     """Parses an ISO-8601-formatted datetime.  Returns None for None."""
@@ -87,7 +89,7 @@ class QuotaInfo:
         self.refresh()
 
     def __repr__(self):
-        return '<QuotaInfo(%s, %s, %s): %s %s/%s/%s>' % (self.uid, self.filesystem, self.quota_type.key, self.current_state.key, self.used, self.soft_limit, self.hard_limit)
+        return '<QuotaInfo(%s, %s, %s): %s %s/%s/%s>' % (self.uid, self.filesystem, self.quota_type, self.current_state, self.used, self.soft_limit, self.hard_limit)
 
     def refresh(self):
         self.db_cursor.execute('SELECT * FROM entry WHERE uid = ? AND filesystem = ? AND quota_type = ?',
